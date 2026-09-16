@@ -124,8 +124,25 @@ function getBaby() {
 }
 
 function apiGetVotes(res) {
+  const votes = getVotes();
+  let boys = 0;
+  let girls = 0;
+  votes.forEach(function (v) {
+    if (v.vote === "Boy") boys++;
+    else if (v.vote === "Girl") girls++;
+  });
   sendJSON(res, 200, {
-    votes: getVotes()
+    votes: votes,
+    tally: { boys: boys, girls: girls }
+  });
+}
+
+function apiResetVotes(res) {
+  db.prepare("DELETE FROM votes").run();
+  sendJSON(res, 200, {
+    ok: true,
+    votes: [],
+    tally: { boys: 0, girls: 0 }
   });
 }
 
@@ -254,6 +271,11 @@ const server = http.createServer((req, res) => {
 
   if (url === "/api/vote" && method === "POST") {
     apiPostVote(req, res);
+    return;
+  }
+
+  if (url === "/api/votes" && method === "DELETE") {
+    apiResetVotes(res);
     return;
   }
 

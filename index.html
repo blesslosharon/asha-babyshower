@@ -574,33 +574,64 @@ body {
 }
 
 
-.reset-btn {
+.tally-bar {
 
-    margin-top: 18px;
+    margin-top: 20px;
 
-    padding: 10px 22px;
+    display: flex;
 
-    font-size: 15px;
+    align-items: center;
 
-    font-weight: bold;
+    justify-content: center;
 
-    color: #fff;
+    gap: 14px;
 
-    background: linear-gradient(135deg, #7b6cf6, #5a4bd8);
+    background: #ffffffcc;
 
-    border: none;
+    border: 2px solid #f3b6d0;
 
     border-radius: 30px;
 
-    cursor: pointer;
+    padding: 10px 20px;
 
-    box-shadow: 0 6px 16px rgba(90,75,216,0.35);
-
-    transition: transform 0.15s ease;
+    box-shadow: 0 6px 16px rgba(40,30,70,0.15);
 }
 
-.reset-btn:active {
-    transform: scale(0.94);
+.tally-boy {
+
+    font-weight: bold;
+
+    color: #39aee3;
+
+    font-size: 17px;
+}
+
+.tally-girl {
+
+    font-weight: bold;
+
+    color: #e95c91;
+
+    font-size: 17px;
+}
+
+.tally-total {
+
+    font-size: 20px;
+
+    font-weight: bold;
+
+    color: #30304f;
+
+    background: #f5f1ff;
+
+    border-radius: 20px;
+
+    padding: 4px 16px;
+
+    min-width: 70px;
+
+    text-align: center;
 }
 
 
@@ -1462,14 +1493,15 @@ body {
             </div>
 
 
-            <button
-                class="reset-btn"
-                type="button"
-                id="resetBtn">
+            <div class="tally-bar">
 
-                🔄 Reset Trial
+                <span class="tally-boy">👦 Boy</span>
 
-            </button>
+                <span class="tally-total" id="tallyTotal">–</span>
+
+                <span class="tally-girl">Girl 👧</span>
+
+            </div>
 
 
             <div class="tree-caption">
@@ -1997,6 +2029,8 @@ async function placeParentVote(role, vote) {
 
     cachedDeviceCount++;
 
+    refreshTally();
+
 
     document.getElementById(
         "successMessage"
@@ -2151,6 +2185,8 @@ async function placeLeafVote() {
         70 + Math.random() * 220
     );
 
+    refreshTally();
+
 
     closeNamePopup();
 
@@ -2225,34 +2261,58 @@ function addTreeLeaf(name, vote, x, y) {
 
 
 /* =========================
-   RESET TRIAL
+   OVERALL TALLY
 ========================= */
 
-document.getElementById("resetBtn").addEventListener(
-    "click",
-    function () {
+function refreshTally() {
 
-        if (
-            !confirm(
-                "Reset all trial votes on this phone? " +
-                "Mom, Dad & guests can vote again fresh. 💗"
-            )
-        ) {
-            return;
-        }
+    try {
 
-        try {
+        apiJSON("/api/votes").then(function (res) {
 
-            localStorage.removeItem("deviceVotes");
-            localStorage.removeItem("parentVote_Mom");
-            localStorage.removeItem("parentVote_Dad");
+            if (res && res.votes) {
 
-        } catch (e) {}
+                updateTally(res.votes);
 
-        location.reload();
+            } else {
+
+                updateTally(getStoredVotes());
+
+            }
+
+        }).catch(function () {
+
+            updateTally(getStoredVotes());
+
+        });
+
+    } catch (e) {
+
+        updateTally(getStoredVotes());
 
     }
-);
+
+}
+
+
+function updateTally(votes) {
+
+    let boysGy = 0;
+    let girls = 0;
+
+    votes.forEach(function (v) {
+
+        if (v.vote === "Boy") boysGy++;
+        else if (v.vote === "Girl") girls++;
+
+    });
+
+    document.getElementById("tallyTotal").innerHTML =
+        "<span style=\"color:#39aee3\">" + boysGy + "</span>" +
+        " · " +
+        "<span style=\"color:#e95c91\">" + girls + "</span>";
+
+}
 
 
 /* =========================
@@ -2289,6 +2349,8 @@ window.addEventListener("load", async function () {
         );
 
     });
+
+    updateTally(votes);
 
     if (serverVotes) {
 

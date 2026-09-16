@@ -244,6 +244,15 @@
             font-weight: bold;
         }
 
+        .reset-votes {
+
+            border-color: #e95c91;
+
+            color: #c82e72;
+
+            background: #fff5f8;
+        }
+
     </style>
 
 </head>
@@ -349,6 +358,15 @@
             onclick="clearBaby()">
 
             Remove Announcement
+
+        </button>
+
+
+        <button
+            class="clear-btn reset-votes"
+            onclick="resetVotes()">
+
+            🔄 Reset ALL Votes
 
         </button>
 
@@ -481,6 +499,52 @@
                 msg.innerHTML =
                     "🎉 Saved on this phone (offline mode). " +
                     "Start the server for all guests to see it.";
+
+            });
+
+        }
+
+
+        function resetVotes() {
+
+            if (
+                !confirm(
+                    "Delete ALL votes (Boy + Girl) from the server? " +
+                    "This cannot be undone."
+                )
+            ) {
+                return;
+            }
+
+            const msg =
+                document.getElementById("adminMessage");
+
+            msg.innerHTML = "⏳ Resetting…";
+
+            fetch("/api/votes", {
+                method: "DELETE"
+            }).then(function (res) {
+                return res.json();
+            }).then(function (data) {
+
+                if (data && data.ok) {
+
+                    msg.innerHTML =
+                        "🧹 All votes deleted! " +
+                        "The tree & tally are fresh.";
+
+                } else {
+
+                    msg.innerHTML =
+                        "⚠️ Server problem: could not reset";
+
+                }
+
+            }).catch(function () {
+
+                msg.innerHTML =
+                    "⚠️ Server offline. Reset only works " +
+                    "with the server running.";
 
             });
 
