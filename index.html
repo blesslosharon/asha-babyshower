@@ -649,7 +649,7 @@ body {
 
     align-items: center;
 
-    gap: 10px;
+    gap: 12px;
 
     margin-top: 22px;
 
@@ -662,19 +662,73 @@ body {
     color: #d12d76;
 }
 
+.parent-choose {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 12px;
+
+    width: 100%;
+
+    max-width: 340px;
+}
+
+.parent-row {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    padding: 10px 14px;
+
+    background: #fff7fa;
+
+    border-radius: 18px;
+
+    border: 2px solid #f3b6d0;
+}
+
+.parent-name {
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    color: #30304f;
+
+    min-width: 90px;
+
+    text-align: left;
+}
+
 .parent-src {
 
-    width: 100px;
+    width: 68px;
 
-    height: 100px;
+    height: 68px;
 
     border-radius: 8% 92% 8% 92%;
 
-    font-size: 19px;
+    font-size: 15px;
 
     border: 3px solid rgba(255,255,255,0.8);
 
     box-shadow: 0 8px 22px rgba(40,30,70,0.35);
+}
+
+.parent-src.used {
+
+    opacity: 0.45;
+
+    cursor: not-allowed;
+
+    transform: none;
 }
 
 .parent-leaf {
@@ -1312,32 +1366,66 @@ body {
             <div class="parent-tray">
 
                 <p class="tree-hint">
-                    💞 Tap to vote 💞
+                    💞 Parents get one chance each — decide! 💞
                 </p>
 
-                <div class="leaf-slot">
+                <div class="parent-choose">
 
-                    <button
-                        class="parent-src leaf-rose leaf-src"
-                        type="button"
-                        data-vote="Girl"
-                        data-role="Mom"
-                        aria-label="Mom leaf">
+                    <div class="parent-row">
 
-                        🤱 Mom
+                        <span class="parent-name">🤱 Mom</span>
 
-                    </button>
+                        <button
+                            class="parent-src leaf-blue leaf-src"
+                            type="button"
+                            data-vote="Boy"
+                            data-role="Mom"
+                            aria-label="Mom chooses Boy">
 
-                    <button
-                        class="parent-src leaf-blue leaf-src"
-                        type="button"
-                        data-vote="Boy"
-                        data-role="Dad"
-                        aria-label="Dad leaf">
+                            👦 Boy
 
-                        👨‍👩‍👧 Dad
+                        </button>
 
-                    </button>
+                        <button
+                            class="parent-src leaf-rose leaf-src"
+                            type="button"
+                            data-vote="Girl"
+                            data-role="Mom"
+                            aria-label="Mom chooses Girl">
+
+                            👧 Girl
+
+                        </button>
+
+                    </div>
+
+                    <div class="parent-row">
+
+                        <span class="parent-name">👨‍👩‍👧 Dad</span>
+
+                        <button
+                            class="parent-src leaf-blue leaf-src"
+                            type="button"
+                            data-vote="Boy"
+                            data-role="Dad"
+                            aria-label="Dad chooses Boy">
+
+                            👦 Boy
+
+                        </button>
+
+                        <button
+                            class="parent-src leaf-rose leaf-src"
+                            type="button"
+                            data-vote="Girl"
+                            data-role="Dad"
+                            aria-label="Dad chooses Girl">
+
+                            👧 Girl
+
+                        </button>
+
+                    </div>
 
                 </div>
 
@@ -1762,13 +1850,23 @@ leafSources.forEach(function (leaf) {
 
             if (localStorage.getItem("parentVote_" + role)) {
 
-                alert(role + " already voted 💗");
+                alert(role + " already chose 💗");
 
                 return;
 
             }
 
             placeParentVote(role, leaf.dataset.vote);
+
+            /* Lock both of that parent's buttons */
+
+            document
+                .querySelectorAll('button[data-role="' + role + '"]')
+                .forEach(function (btn) {
+
+                    btn.classList.add("used");
+
+                });
 
         } else {
 
@@ -2146,6 +2244,25 @@ window.addEventListener("load", async function () {
         );
 
     }
+
+
+    /* Lock parent buttons if they already chose */
+
+    ["Mom", "Dad"].forEach(function (role) {
+
+        if (localStorage.getItem("parentVote_" + role)) {
+
+            document
+                .querySelectorAll('button[data-role="' + role + '"]')
+                .forEach(function (btn) {
+
+                    btn.classList.add("used");
+
+                });
+
+        }
+
+    });
 
 
     /* =========================
