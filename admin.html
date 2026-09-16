@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Admin · Asha Baby Shower</title>
+
+    <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+
+            font-family: "Segoe UI", Arial, sans-serif;
+
+            background: linear-gradient(
+                90deg,
+                rgba(116,205,241,0.35),
+                rgba(255,255,255,0.9),
+                rgba(244,151,190,0.35)
+            );
+
+            min-height: 100vh;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 30px;
+        }
+
+        .admin-card {
+
+            background: white;
+
+            width: 100%;
+
+            max-width: 520px;
+
+            border-radius: 30px;
+
+            padding: 45px;
+
+            box-shadow: 0 20px 60px rgba(50,40,80,0.18);
+
+            border: 2px solid #f3b6d0;
+        }
+
+        .admin-card h1 {
+
+            color: #c82e72;
+
+            font-size: 34px;
+
+            text-align: center;
+
+            margin-bottom: 8px;
+        }
+
+        .admin-card .sub {
+
+            text-align: center;
+
+            color: #30304f;
+
+            margin-bottom: 30px;
+
+            font-size: 16px;
+        }
+
+        .field {
+
+            margin-bottom: 22px;
+        }
+
+        .field label {
+
+            display: block;
+
+            font-weight: bold;
+
+            color: #30304f;
+
+            margin-bottom: 8px;
+
+            font-size: 15px;
+        }
+
+        .field input[type="text"],
+        .field input[type="date"],
+        .field input[type="time"] {
+
+            width: 100%;
+
+            padding: 15px;
+
+            border: 2px solid #f1cfdd;
+
+            border-radius: 15px;
+
+            font-size: 16px;
+
+            outline: none;
+        }
+
+        .field input:focus {
+
+            border-color: #df6091;
+        }
+
+        .gender-row {
+
+            display: flex;
+
+            gap: 15px;
+        }
+
+        .gender-btn {
+
+            flex: 1;
+
+            padding: 18px;
+
+            border: none;
+
+            border-radius: 18px;
+
+            font-size: 18px;
+
+            font-weight: bold;
+
+            color: white;
+
+            cursor: pointer;
+
+            transition: transform 0.15s ease;
+        }
+
+        .gender-btn.boy {
+
+            background: linear-gradient(135deg, #8fd6f2, #39aee3);
+        }
+
+        .gender-btn.girl {
+
+            background: linear-gradient(135deg, #f9aac7, #e95c91);
+        }
+
+        .gender-btn.boy.selected {
+
+            outline: 5px solid #158fcb;
+            transform: scale(1.04);
+        }
+
+        .gender-btn.girl.selected {
+
+            outline: 5px solid #e0447e;
+            transform: scale(1.04);
+        }
+
+        .publish-btn {
+
+            width: 100%;
+
+            margin-top: 10px;
+
+            padding: 17px;
+
+            border: none;
+
+            border-radius: 20px;
+
+            background: #ce3679;
+
+            color: white;
+
+            font-size: 18px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+
+            box-shadow: 0 8px 20px rgba(206,54,121,0.35);
+        }
+
+        .clear-btn {
+
+            width: 100%;
+
+            margin-top: 12px;
+
+            padding: 13px;
+
+            border: 2px solid #f1cfdd;
+
+            border-radius: 20px;
+
+            background: white;
+
+            color: #a35b80;
+
+            font-size: 15px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        #adminMessage {
+
+            margin-top: 18px;
+
+            text-align: center;
+
+            font-weight: bold;
+
+            font-size: 17px;
+
+            color: #c82e72;
+        }
+
+        .back-link {
+
+            display: block;
+
+            margin-top: 25px;
+
+            text-align: center;
+
+            color: #39aee3;
+
+            text-decoration: none;
+
+            font-weight: bold;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="admin-card">
+
+        <h1>🎀 Admin Panel</h1>
+
+        <p class="sub">
+            Reveal the baby result &amp; naming ceremony
+        </p>
+
+
+
+        <div class="field">
+
+            <label>Baby Name</label>
+
+            <input
+                type="text"
+                id="babyNameInput"
+                placeholder="e.g. Aadhya">
+
+        </div>
+
+
+        <div class="field">
+
+            <label>Born Date</label>
+
+            <input
+                type="date"
+                id="babyDateInput">
+
+        </div>
+
+
+        <div class="field">
+
+            <label>Born Time</label>
+
+            <input
+                type="time"
+                id="babyTimeInput">
+
+        </div>
+
+
+        <div class="field">
+
+            <label>Photo URL (optional)</label>
+
+            <input
+                type="text"
+                id="babyPhotoInput"
+                placeholder="https://...">
+
+        </div>
+
+
+        <div class="field">
+
+            <label>Baby Is a…</label>
+
+            <div class="gender-row">
+
+                <button
+                    class="gender-btn boy"
+                    id="boyWinBtn"
+                    onclick="selectGender('Boy')">
+
+                    👦 Boy
+
+                </button>
+
+                <button
+                    class="gender-btn girl"
+                    id="girlWinBtn"
+                    onclick="selectGender('Girl')">
+
+                    👧 Girl
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <button
+            class="publish-btn"
+            onclick="publishBaby()">
+
+            💌 Reveal to Guests
+
+        </button>
+
+
+        <button
+            class="clear-btn"
+            onclick="clearBaby()">
+
+            Remove Announcement
+
+        </button>
+
+
+        <p id="adminMessage"></p>
+
+
+        <a class="back-link"
+           href="index.html">
+            ← Back to Baby Shower Tree
+        </a>
+
+    </div>
+
+
+    <script>
+
+        let selectedGender = "";
+
+
+        function selectGender(gender) {
+
+            selectedGender = gender;
+
+            document.getElementById("boyWinBtn")
+                .classList.remove("selected");
+
+            document.getElementById("girlWinBtn")
+                .classList.remove("selected");
+
+            document.getElementById(
+                gender === "Boy" ? "boyWinBtn" : "girlWinBtn"
+            ).classList.add("selected");
+
+        }
+
+
+        function publishBaby() {
+
+            const name =
+                document.getElementById("babyNameInput")
+                .value.trim();
+
+            const date =
+                document.getElementById("babyDateInput").value;
+
+            const time =
+                document.getElementById("babyTimeInput").value;
+
+            const photo =
+                document.getElementById("babyPhotoInput")
+                .value.trim();
+
+
+            if (!name || !date || !time) {
+
+                alert("Please enter Baby Name, Date and Time");
+
+                return;
+
+            }
+
+
+            if (selectedGender === "") {
+
+                alert("Please select Boy or Girl 👶");
+
+                return;
+
+            }
+
+
+            const babyData = {
+
+                name: name,
+                date: date,
+                time: time,
+                photo: photo,
+                gender: selectedGender
+
+            };
+
+
+            const msg =
+                document.getElementById("adminMessage");
+
+
+            msg.innerHTML = "⏳ Publishing…";
+
+
+            fetch("/api/baby", {
+
+                method: "POST",
+
+                headers: { "Content-Type": "application/json" },
+
+                body: JSON.stringify(babyData)
+
+            }).then(function (res) {
+
+                return res.json();
+
+            }).then(function (data) {
+
+                if (data && data.ok) {
+
+                    msg.innerHTML =
+                        "🎉 Announcement published! " +
+                        "Guests will see the result on the tree page.";
+
+                } else {
+
+                    msg.innerHTML =
+                        "⚠️ Server problem: " +
+                        (data && data.error
+                            ? data.error
+                            : "could not publish");
+
+                }
+
+            }).catch(function () {
+
+                /* server offline → fallback to localStorage */
+
+                localStorage.setItem(
+                    "babyData",
+                    JSON.stringify(babyData)
+                );
+
+                msg.innerHTML =
+                    "🎉 Saved on this phone (offline mode). " +
+                    "Start the server for all guests to see it.";
+
+            });
+
+        }
+
+
+        function clearBaby() {
+
+            fetch("/api/baby", {
+                method: "DELETE"
+            }).then(function () {
+
+                document.getElementById("adminMessage").innerHTML =
+                    "🗑️ Announcement removed.";
+
+            }).catch(function () {
+
+                localStorage.removeItem("babyData");
+
+                document.getElementById("adminMessage").innerHTML =
+                    "🗑️ Announcement removed (offline mode).";
+
+            });
+
+        }
+
+    </script>
+
+</body>
+
+</html>
