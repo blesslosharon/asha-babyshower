@@ -574,6 +574,36 @@ body {
 }
 
 
+.reset-btn {
+
+    margin-top: 18px;
+
+    padding: 10px 22px;
+
+    font-size: 15px;
+
+    font-weight: bold;
+
+    color: #fff;
+
+    background: linear-gradient(135deg, #7b6cf6, #5a4bd8);
+
+    border: none;
+
+    border-radius: 30px;
+
+    cursor: pointer;
+
+    box-shadow: 0 6px 16px rgba(90,75,216,0.35);
+
+    transition: transform 0.15s ease;
+}
+
+.reset-btn:active {
+    transform: scale(0.94);
+}
+
+
 /* =========================
    LEAF TRAY & LEAVES
 ========================= */
@@ -1432,6 +1462,16 @@ body {
             </div>
 
 
+            <button
+                class="reset-btn"
+                type="button"
+                id="resetBtn">
+
+                🔄 Reset Trial
+
+            </button>
+
+
             <div class="tree-caption">
 
                 <span class="boy-text">Boy</span>
@@ -2182,6 +2222,37 @@ function addTreeLeaf(name, vote, x, y) {
     treeBox.appendChild(leaf);
 
 }
+
+
+/* =========================
+   RESET TRIAL
+========================= */
+
+document.getElementById("resetBtn").addEventListener(
+    "click",
+    function () {
+
+        if (
+            !confirm(
+                "Reset all trial votes on this phone? " +
+                "Mom, Dad & guests can vote again fresh. 💗"
+            )
+        ) {
+            return;
+        }
+
+        try {
+
+            localStorage.removeItem("deviceVotes");
+            localStorage.removeItem("parentVote_Mom");
+            localStorage.removeItem("parentVote_Dad");
+
+        } catch (e) {}
+
+        location.reload();
+
+    }
+);
 
 
 /* =========================
