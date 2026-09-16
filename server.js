@@ -14,7 +14,7 @@ const crypto = require("node:crypto");
 const { DatabaseSync } = require("node:sqlite");
 
 const ROOT = __dirname;
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 80;
 
 /* ---------- database ---------- */
 

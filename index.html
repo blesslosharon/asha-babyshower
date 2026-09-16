@@ -629,9 +629,7 @@ body {
 
     justify-content: center;
 
-    cursor: grab;
-
-    touch-action: none;
+    cursor: pointer;
 
     box-shadow: 0 6px 16px rgba(40,30,70,0.25);
 
@@ -735,7 +733,7 @@ body {
 }
 
 .leaf-src:active {
-    cursor: grabbing;
+    transform: scale(0.94);
 }
 
 .leaf-blue {
@@ -752,8 +750,6 @@ body {
     outline: 5px solid #333;
     transform: scale(1.08);
 }
-
-/* floating leaf while dragging */
 
 .leaf-float {
 
@@ -1241,7 +1237,7 @@ body {
 
     <p class="vote-subtitle">
 
-        Drag a blue leaf for <b>Boy</b> 👦 or a rose leaf for <b>Girl</b> 👧 onto the tree!
+        Tap a blue (Boy 👦) or rose (Girl 👧) leaf to vote!
 
     </p>
 
@@ -1279,7 +1275,7 @@ body {
             <div class="leaf-tray">
 
                 <p class="tree-hint">
-                    Drag a leaf onto the tree 🌿
+                    Tap a leaf to vote 🌿
                 </p>
 
                 <div class="leaf-slot">
@@ -1316,7 +1312,7 @@ body {
             <div class="parent-tray">
 
                 <p class="tree-hint">
-                    💞 Mom &amp; Dad · middle of the tree 💞
+                    💞 Tap to vote 💞
                 </p>
 
                 <div class="leaf-slot">
@@ -1744,12 +1740,10 @@ function closePopup() {
 
 
 /* =========================
-   DRAG LEAF ONTO TREE
+   TAP A LEAF TO VOTE
 ========================= */
 
-let dragLeaf = null;
 let pendingVote = "";
-
 
 const treeBox = document.getElementById("treeBox");
 
@@ -1760,7 +1754,7 @@ const leafSources =
 
 leafSources.forEach(function (leaf) {
 
-    leaf.addEventListener("pointerdown", function (e) {
+    leaf.addEventListener("click", function (e) {
 
         const role = leaf.dataset.role || "";
 
@@ -1768,152 +1762,54 @@ leafSources.forEach(function (leaf) {
 
             if (localStorage.getItem("parentVote_" + role)) {
 
+                alert(role + " already voted 💗");
+
+                return;
+
+            }
+
+            placeParentVote(role, leaf.dataset.vote);
+
+        } else {
+
+            if (cachedDeviceCount >= MAX_VOTES) {
+
                 alert(
-                    role + " already voted 💗"
+                    "That's the max 10 votes from this phone. Thanks 💗"
                 );
 
                 return;
 
             }
 
-        } else if (cachedDeviceCount >= MAX_VOTES) {
+            pendingVote = leaf.dataset.vote;
 
-            alert(
-                "That's the max 10 votes from this phone. Thanks 💗"
-            );
+            document.getElementById(
+                "leafVoteText"
+            ).innerHTML =
+                "Your prediction: <b>" +
+                (pendingVote === "Boy"
+                    ? "Boy 👦"
+                    : "Girl 👧") +
+                "</b><br>Enter your name:";
 
-            return;
+            document.getElementById(
+                "leafNameInput"
+            ).value = "";
 
-        }
+            document.getElementById(
+                "namePopup"
+            ).style.display = "flex";
 
-
-        e.preventDefault();
-
-        const rect = leaf.getBoundingClientRect();
-
-        dragLeaf = document.createElement("div");
-
-        dragLeaf.className =
-            "leaf-float " +
-            (leaf.dataset.vote === "Boy"
-                ? "leaf-blue"
-                : "leaf-rose");
-
-        dragLeaf.style.width = "90px";
-        dragLeaf.style.height = "90px";
-
-        dragLeaf.innerHTML =
-            role
-                ? (role === "Mom"
-                    ? "🤱 " + leaf.dataset.vote
-                    : "👨‍👩‍👧 " + leaf.dataset.vote)
-                : (leaf.dataset.vote === "Boy"
-                    ? "👦 Boy"
-                    : "👧 Girl");
-
-        document.body.appendChild(dragLeaf);
-
-        moveDragLeaf(e);
-
-        leaf.setPointerCapture(e.pointerId);
-
-    });
-
-
-    leaf.addEventListener("pointermove", function (e) {
-
-        if (dragLeaf) moveDragLeaf(e);
-
-    });
-
-
-leaf.addEventListener("pointerup", function (e) {
-
-        if (!dragLeaf) return;
-
-        moveDragLeaf(e);
-
-        const treeRect =
-            treeBox.getBoundingClientRect();
-
-        const dropped =
-            e.clientX >= treeRect.left &&
-            e.clientX <= treeRect.right &&
-            e.clientY >= treeRect.top &&
-            e.clientY <= treeRect.bottom;
-
-
-        if (dragLeaf) {
-
-            dragLeaf.remove();
-
-            dragLeaf = null;
+            document.getElementById(
+                "leafNameInput"
+            ).focus();
 
         }
-
-
-        if (!dropped) return;
-
-
-        /* Parent leaf → place in middle directly */
-
-        const role = leaf.dataset.role || "";
-
-        if (role) {
-
-            placeParentVote(
-                role,
-                leaf.dataset.vote
-            );
-
-            return;
-
-        }
-
-
-        /* Guest leaf → name popup */
-
-        pendingVote = leaf.dataset.vote;
-
-        document.getElementById(
-            "leafVoteText"
-        ).innerHTML =
-            "Your prediction: <b>" +
-            (pendingVote === "Boy"
-                ? "Boy 👦"
-                : "Girl 👧") +
-            "</b><br>Enter your name:";
-
-        document.getElementById(
-            "leafNameInput"
-        ).value = "";
-
-        document.getElementById(
-            "namePopup"
-        ).style.display = "flex";
-
-        document.getElementById(
-            "leafNameInput"
-        ).focus();
-
-    });
 
     });
 
 });
-
-
-function moveDragLeaf(e) {
-
-    if (!dragLeaf) return;
-
-    const x = e.clientX;
-    const y = e.clientY;
-
-    dragLeaf.style.left = (x - 45) + "px";
-    dragLeaf.style.top = (y - 45) + "px";
-
-}
 
 
 /* =========================
