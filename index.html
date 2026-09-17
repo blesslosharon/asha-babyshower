@@ -2638,6 +2638,21 @@ function updateTally(votes) {
 
 window.addEventListener("load", async function () {
 
+    /* If admin reset the votes on this phone,
+       start completely fresh (even offline) */
+
+    if (localStorage.getItem("voteResetSignal")) {
+
+        localStorage.removeItem("voteResetSignal");
+
+        localStorage.removeItem("deviceVotes");
+
+        localStorage.removeItem("parentVote_Mom");
+
+        localStorage.removeItem("parentVote_Dad");
+
+    }
+
     let serverVotes = null;
 
     try {

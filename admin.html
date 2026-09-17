@@ -532,6 +532,11 @@
 
                 localStorage.removeItem("deviceVotes");
 
+                localStorage.setItem(
+                    "voteResetSignal",
+                    String(Date.now())
+                );
+
             }
 
             fetch("/api/votes", {
