@@ -636,6 +636,122 @@ body {
 
 
 /* =========================
+   VOTES BOARD (who voted)
+========================= */
+
+.votes-board {
+
+    width: 100%;
+
+    max-width: 620px;
+
+    margin: 30px auto 0;
+
+    background: #ffffffcc;
+
+    border: 2px solid #f3b6d0;
+
+    border-radius: 24px;
+
+    padding: 22px;
+
+    box-shadow: 0 8px 20px rgba(40,30,70,0.12);
+}
+
+.board-title {
+
+    font-size: 24px;
+
+    color: #cf3377;
+
+    margin-bottom: 10px;
+}
+
+.board-winner {
+
+    font-size: 18px;
+
+    font-weight: bold;
+
+    color: #30304f;
+
+    margin-bottom: 14px;
+}
+
+.board-list {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+    max-height: 240px;
+
+    overflow-y: auto;
+
+    padding-right: 6px;
+}
+
+.board-row {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    padding: 9px 14px;
+
+    border-radius: 14px;
+
+    font-size: 15px;
+
+    font-weight: bold;
+}
+
+.board-row.row-boy {
+
+    background: #eaf7ff;
+
+    color: #1f8fc8;
+
+}
+
+.board-row.row-girl {
+
+    background: #fff0f6;
+
+    color: #d84b83;
+
+}
+
+.board-name {
+
+    max-width: 60%;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+}
+
+.board-empty {
+
+    text-align: center;
+
+    color: #a35b80;
+
+    font-size: 16px;
+
+    padding: 10px 0;
+}
+
+
+/* =========================
    LEAF TRAY & LEAVES
 ========================= */
 
@@ -1500,6 +1616,23 @@ body {
                 <span class="tally-total" id="tallyTotal">–</span>
 
                 <span class="tally-girl">Girl 👧</span>
+
+            </div>
+
+
+            <div class="votes-board" id="votesBoard">
+
+                <h3 class="board-title">🗳️ Who Voted 💕</h3>
+
+                <div class="board-winner">
+
+                    Currently leading:
+
+                    <span id="winnerText">–</span>
+
+                </div>
+
+                <div class="board-list" id="votesList"></div>
 
             </div>
 
@@ -2417,20 +2550,84 @@ function refreshTally() {
 
 function updateTally(votes) {
 
-    let boysGy = 0;
+    let boys = 0;
     let girls = 0;
 
     votes.forEach(function (v) {
 
-        if (v.vote === "Boy") boysGy++;
+        if (v.vote === "Boy") boys++;
         else if (v.vote === "Girl") girls++;
 
     });
 
     document.getElementById("tallyTotal").innerHTML =
-        "<span style=\"color:#39aee3\">" + boysGy + "</span>" +
+        "<span style=\"color:#39aee3\">" + boys + "</span>" +
         " · " +
         "<span style=\"color:#e95c91\">" + girls + "</span>";
+
+
+    /* =========================
+       LEADERBOARD — who voted
+    ========================= */
+
+    const list =
+        document.getElementById("votesList");
+
+    list.innerHTML = "";
+
+    votes.forEach(function (v) {
+
+        const row =
+            document.createElement("div");
+
+        row.className =
+            "board-row " +
+            (v.vote === "Boy"
+                ? "row-boy"
+                : "row-girl");
+
+        row.innerHTML =
+            "<span class='board-name'>" +
+            v.name +
+            "</span><span class='board-pick'>" +
+            (v.vote === "Boy" ? "👦 Boy" : "👧 Girl") +
+            "</span>";
+
+        list.appendChild(row);
+
+    });
+
+    if (votes.length === 0) {
+
+        list.innerHTML =
+            "<div class='board-empty'>" +
+            "No votes yet — be the first! 🌿" +
+            "</div>";
+
+    }
+
+
+    /* leading team */
+
+    const winnerText =
+        document.getElementById("winnerText");
+
+    if (boys > girls) {
+
+        winnerText.innerHTML =
+            "<span style='color:#39aee3'>👦 Boy team</span>";
+
+    } else if (girls > boys) {
+
+        winnerText.innerHTML =
+            "<span style='color:#e95c91'>👧 Girl team</span>";
+
+    } else {
+
+        winnerText.innerHTML =
+            "<span>🤝 It's a tie!</span>";
+
+    }
 
 }
 
