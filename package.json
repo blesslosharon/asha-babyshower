@@ -1,0 +1,13 @@
+{
+  "name": "asha-babyshower",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Asha's Baby Shower — family tree voting",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
