@@ -594,6 +594,37 @@
 
         }
 
+
+        /* Show a warning when running in static mode (GitHub Pages) */
+
+        window.addEventListener("load", function () {
+
+            if (!location.hostname.includes("github.io")) {
+
+                return;
+
+            }
+
+            const note =
+                document.createElement("div");
+
+            note.style.cssText =
+                "margin-top:20px;padding:14px;border-radius:14px;" +
+                "background:#fff5f8;border:2px solid #e95c91;" +
+                "color:#c82e72;font-size:14px;line-height:1.6;";
+
+            note.innerHTML =
+                "<b>⚠️ Static Mode</b> — GitHub Pages hosts this " +
+                "without a server, so every phone keeps its own votes.<br>" +
+                "Reset clears only <b>this phone</b>; guests can't see " +
+                "each other's votes here.<br>" +
+                "Deploy the Node server on <b>Render</b> for real " +
+                "shared voting &amp; reset.";
+
+            document.querySelector(".admin-card").appendChild(note);
+
+        });
+
     </script>
 
 </body>
