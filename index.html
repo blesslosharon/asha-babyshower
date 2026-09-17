@@ -2178,11 +2178,13 @@ async function placeLeafVote() {
 
     /* Add leaf on tree */
 
+    const leafPos = findLeafPosition();
+
     addTreeLeaf(
         leafName,
         pendingVote,
-        70 + Math.random() * 290,
-        70 + Math.random() * 220
+        leafPos.x,
+        leafPos.y
     );
 
     refreshTally();
@@ -2225,6 +2227,124 @@ function closeNamePopup() {
     document.getElementById(
         "namePopup"
     ).style.display = "none";
+
+}
+
+
+/* =========================
+   FIND LEAF POSITION (no overlap)
+========================= */
+
+const LEAF_MARGIN = 6;
+
+function occupiedLeafSpots() {
+
+    const spots = [];
+
+    treeBox
+        .querySelectorAll(".tree-leaf, .parent-leaf")
+        .forEach(function (el) {
+
+            spots.push({
+                x: parseFloat(el.style.left || "0"),
+                y: parseFloat(el.style.top || "0"),
+                r: 27.5
+            });
+
+        });
+
+    treeBox
+        .querySelectorAll(".finger")
+        .forEach(function (el) {
+
+            spots.push({
+                x: parseFloat(el.style.left || getComputedStyle(el).left),
+                y: parseFloat(el.style.top || getComputedStyle(el).top),
+                r: 22
+            });
+
+        });
+
+    return spots;
+
+}
+
+function wouldOverlap(x, y, spots) {
+
+    for (let i = 0; i < spots.length; i++) {
+
+        const s = spots[i];
+
+        if (
+            Math.abs(s.x - x) < s.r + 27.5 + LEAF_MARGIN &&
+            Math.abs(s.y - y) < s.r + 27.5 + LEAF_MARGIN
+        ) {
+
+            return true;
+
+        }
+
+    }
+
+    return false;
+
+}
+
+function findLeafPosition() {
+
+    const spots  = occupiedLeafSpots();
+
+    const minX = 75;
+    const maxX = 355;
+    const minY = 75;
+    const maxY = 290;
+
+    let best      = null;
+    let bestScore = Infinity;
+
+    for (let attempt = 0; attempt < 120; attempt++) {
+
+        const x =
+            minX + Math.random() * (maxX - minX);
+
+        const y =
+            minY + Math.random() * (maxY - minY);
+
+        if (!wouldOverlap(x, y, spots)) {
+
+            return { x: x, y: y };
+
+        }
+
+        /* fallback: remember the least-overlapping spot */
+
+        let score = 0;
+
+        for (let i = 0; i < spots.length; i++) {
+
+            const s = spots[i];
+
+            const dx =
+                s.r + 27.5 + LEAF_MARGIN - Math.abs(s.x - x);
+
+            const dy =
+                s.r + 27.5 + LEAF_MARGIN - Math.abs(s.y - y);
+
+            if (dx > 0 && dy > 0) score += Math.min(dx, dy);
+
+        }
+
+        if (score < bestScore) {
+
+            bestScore = score;
+
+            best = { x: x, y: y };
+
+        }
+
+    }
+
+    return best || { x: minX, y: minY };
 
 }
 
@@ -2341,11 +2461,13 @@ window.addEventListener("load", async function () {
 
     votes.forEach(function (v) {
 
+        const leafPos = findLeafPosition();
+
         addTreeLeaf(
             v.name,
             v.vote,
-            70 + Math.random() * 290,
-            70 + Math.random() * 220
+            leafPos.x,
+            leafPos.y
         );
 
     });
@@ -2383,7 +2505,30 @@ window.addEventListener("load", async function () {
 
     ["Mom", "Dad"].forEach(function (role) {
 
-        if (localStorage.getItem("parentVote_" + role)) {
+        let lock =
+            localStorage.getItem("parentVote_" + role);
+
+        /* If the server was reset, release the parent's lock */
+
+        if (lock && serverVotes) {
+
+            const stillVoted = serverVotes.some(
+                function (v) {
+                    return v.name === role && v.vote === lock;
+                }
+            );
+
+            if (!stillVoted) {
+
+                localStorage.removeItem("parentVote_" + role);
+
+                lock = "";
+
+            }
+
+        }
+
+        if (lock) {
 
             document
                 .querySelectorAll('button[data-role="' + role + '"]')

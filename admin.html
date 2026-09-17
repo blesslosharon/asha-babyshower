@@ -521,17 +521,32 @@
 
             msg.innerHTML = "⏳ Resetting…";
 
+            /* clear this phone's local vote data
+               (works even when the server is offline) */
+
+            function clearLocal() {
+
+                localStorage.removeItem("parentVote_Mom");
+
+                localStorage.removeItem("parentVote_Dad");
+
+                localStorage.removeItem("deviceVotes");
+
+            }
+
             fetch("/api/votes", {
                 method: "DELETE"
             }).then(function (res) {
                 return res.json();
             }).then(function (data) {
 
+                clearLocal();
+
                 if (data && data.ok) {
 
                     msg.innerHTML =
                         "🧹 All votes deleted! " +
-                        "The tree & tally are fresh.";
+                        "The tree, tally & Mom/Dad picks are fresh.";
 
                 } else {
 
@@ -542,9 +557,12 @@
 
             }).catch(function () {
 
+                clearLocal();
+
                 msg.innerHTML =
-                    "⚠️ Server offline. Reset only works " +
-                    "with the server running.";
+                    "🧹 Votes cleared on this phone " +
+                    "(offline mode). Start the server " +
+                    "to reset all guests' votes.";
 
             });
 
