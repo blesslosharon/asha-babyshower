@@ -382,7 +382,23 @@
     </div>
 
 
+    <!-- FIREBASE (shared database) -->
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <script src="firebase-config.js"></script>
+
+
     <script>
+
+        const db = firebase.firestore();
+
+        const votesCol = db.collection("votes");
+
+        const babyDoc = db.collection("baby").doc("info");
+
 
         let selectedGender = "";
 
@@ -457,48 +473,17 @@
             msg.innerHTML = "⏳ Publishing…";
 
 
-            fetch("/api/baby", {
+            babyDoc.set(babyData).then(function () {
 
-                method: "POST",
-
-                headers: { "Content-Type": "application/json" },
-
-                body: JSON.stringify(babyData)
-
-            }).then(function (res) {
-
-                return res.json();
-
-            }).then(function (data) {
-
-                if (data && data.ok) {
-
-                    msg.innerHTML =
-                        "🎉 Announcement published! " +
-                        "Guests will see the result on the tree page.";
-
-                } else {
-
-                    msg.innerHTML =
-                        "⚠️ Server problem: " +
-                        (data && data.error
-                            ? data.error
-                            : "could not publish");
-
-                }
+                msg.innerHTML =
+                    "🎉 Announcement published! " +
+                    "Guests will see the result on the tree page.";
 
             }).catch(function () {
 
-                /* server offline → fallback to localStorage */
-
-                localStorage.setItem(
-                    "babyData",
-                    JSON.stringify(babyData)
-                );
-
                 msg.innerHTML =
-                    "🎉 Saved on this phone (offline mode). " +
-                    "Start the server for all guests to see it.";
+                    "⚠️ Could not publish. " +
+                    "Please check your internet.";
 
             });
 
@@ -539,91 +524,72 @@
 
             }
 
-            fetch("/api/votes", {
-                method: "DELETE"
-            }).then(function (res) {
-                return res.json();
-            }).then(function (data) {
-
-                clearLocal();
-
-                if (data && data.ok) {
-
-                    msg.innerHTML =
-                        "🧹 All votes deleted! " +
-                        "The tree, tally & Mom/Dad picks are fresh.";
-
-                } else {
-
-                    msg.innerHTML =
-                        "⚠️ Server problem: could not reset";
-
-                }
-
-            }).catch(function () {
+            deleteAllVotes().then(function () {
 
                 clearLocal();
 
                 msg.innerHTML =
-                    "🧹 Votes cleared on this phone " +
-                    "(offline mode). Start the server " +
-                    "to reset all guests' votes.";
+                    "🧹 All votes deleted! " +
+                    "The tree, tally & Mom/Dad picks are fresh.";
+
+            }).catch(function () {
+
+                msg.innerHTML =
+                    "⚠️ Could not reset. " +
+                    "Please check your internet.";
 
             });
+
+        }
+
+
+        /* Delete every vote doc (batched, 400 at a time) */
+
+        async function deleteAllVotes() {
+
+            while (true) {
+
+                const snap =
+                    await votesCol.limit(400).get();
+
+                if (snap.empty) break;
+
+                const batch = db.batch();
+
+                snap.forEach(function (d) {
+                    batch.delete(d.ref);
+                });
+
+                await batch.commit();
+
+            }
 
         }
 
 
         function clearBaby() {
 
-            fetch("/api/baby", {
-                method: "DELETE"
-            }).then(function () {
+            babyDoc.delete().then(function () {
+
+                localStorage.removeItem("babyData");
 
                 document.getElementById("adminMessage").innerHTML =
                     "🗑️ Announcement removed.";
 
             }).catch(function () {
 
-                localStorage.removeItem("babyData");
-
                 document.getElementById("adminMessage").innerHTML =
-                    "🗑️ Announcement removed (offline mode).";
+                    "⚠️ Could not remove. " +
+                    "Please check your internet.";
 
             });
 
         }
 
 
-        /* Show a warning when running in static mode (GitHub Pages) */
-
-        window.addEventListener("load", function () {
-
-            if (!location.hostname.includes("github.io")) {
-
-                return;
-
-            }
-
-            const note =
-                document.createElement("div");
-
-            note.style.cssText =
-                "margin-top:20px;padding:14px;border-radius:14px;" +
-                "background:#fff5f8;border:2px solid #e95c91;" +
-                "color:#c82e72;font-size:14px;line-height:1.6;";
-
-            note.innerHTML =
-                "<b>⚠️ Static Mode</b> — GitHub Pages hosts this " +
-                "without a server, so every phone keeps its own votes.<br>" +
-                "Reset clears only <b>this phone</b>; guests can't see " +
-                "each other's votes here.<br>" +
-                "Deploy the Node server on <b>Render</b> for real " +
-                "shared voting &amp; reset.";
-
-            document.querySelector(".admin-card").appendChild(note);
-
-        });
+        /* Votes + announcement now live in Firebase Firestore,
+           so shared voting & reset work on GitHub Pages and
+           Render alike (no backend needed). */
 
     </script>
 

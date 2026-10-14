@@ -1793,6 +1793,15 @@ body {
 
 
 
+<!-- FIREBASE (shared database) -->
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script src="firebase-config.js"></script>
+
+
 <script>
 
 /* =========================
@@ -1852,6 +1861,17 @@ function selectVote(choice) {
 
 
 /* =========================
+   FIREBASE (shared database)
+========================= */
+
+const db = firebase.firestore();
+
+const votesCol = db.collection("votes");
+
+const babyDoc = db.collection("baby").doc("info");
+
+
+/* =========================
    VOTE LIMIT (10 per device)
 ========================= */
 
@@ -1883,6 +1903,87 @@ function getDeviceId() {
     }
 
     return id;
+
+}
+
+
+/* =========================
+   LIVE SYNC — every phone
+   Any new vote updates all
+   open pages instantly.
+========================= */
+
+votesCol.onSnapshot(function (snap) {
+
+    allVotes = snap.docs.map(function (d) {
+
+        const v = d.data();
+
+        v.id = d.id;
+
+        return v;
+
+    });
+
+    allVotes.sort(function (a, b) {
+
+        return (a.ts || 0) - (b.ts || 0);
+
+    });
+
+    renderLeaves(allVotes);
+
+    updateTally(allVotes);
+
+    const myId = getDeviceId();
+
+    cachedDeviceCount = allVotes.filter(
+        function (v) {
+
+            return v.deviceId === myId;
+
+        }
+    ).length;
+
+}, function (err) {
+
+    console.error("Firestore error:", err);
+
+});
+
+
+/* Draw every vote as a leaf on the tree */
+
+function renderLeaves(votes) {
+
+    const box = document.getElementById("treeBox");
+
+    box
+        .querySelectorAll(".tree-leaf, .parent-leaf")
+        .forEach(function (el) {
+
+            el.remove();
+
+        });
+
+    votes.forEach(function (v) {
+
+        let x = v.x;
+        let y = v.y;
+
+        if (typeof x !== "number" ||
+            typeof y !== "number") {
+
+            const pos = findLeafPosition();
+
+            x = pos.x;
+            y = pos.y;
+
+        }
+
+        addTreeLeaf(v.name, v.vote, x, y);
+
+    });
 
 }
 
@@ -2192,41 +2293,22 @@ async function placeParentVote(role, vote) {
     );
 
 
-    /* Save to server */
+    /* Save to shared Firestore database */
 
     try {
 
-        await apiJSON("/api/vote", {
+        await votesCol.add({
 
-            method: "POST",
-
-            headers: { "Content-Type": "application/json" },
-
-            body: JSON.stringify({
-
-                name: name,
-                vote: vote,
-                deviceId: getDeviceId()
-
-            })
+            name: name,
+            vote: vote,
+            deviceId: getDeviceId(),
+            x: role === "Mom" ? 155 : 275,
+            y: 185,
+            ts: Date.now()
 
         });
 
-    } catch (e) { /* fallback ok */ }
-
-
-    /* Place in centre of tree */
-
-    addTreeLeaf(
-        name,
-        vote,
-        role === "Mom" ? 155 : 275,
-        185
-    );
-
-    cachedDeviceCount++;
-
-    refreshTally();
+    } catch (e) { /* offline */ }
 
 
     document.getElementById(
@@ -2271,83 +2353,11 @@ async function placeLeafVote() {
     }
 
 
-    /* Try server first, fall back to localStorage */
+    if (cachedDeviceCount >= MAX_VOTES) {
 
-    let saved = false;
-
-    let serverError = "";
-
-
-    try {
-
-        const res = await apiJSON("/api/vote", {
-
-            method: "POST",
-
-            headers: { "Content-Type": "application/json" },
-
-            body: JSON.stringify({
-
-                name: leafName,
-                vote: pendingVote,
-                deviceId: getDeviceId()
-
-            })
-
-        });
-
-
-        if (res && res.error) {
-
-            serverError = res.error;
-
-        } else if (res && res.ok) {
-
-            saved = true;
-
-            cachedDeviceCount = res.deviceCount || 0;
-
-        }
-
-    } catch (e) {
-
-        /* server offline */
-
-    }
-
-
-    /* localStorage fallback */
-
-    if (!saved) {
-
-        const votes = getStoredVotes();
-
-        if (votes.length >= MAX_VOTES) {
-
-            serverError =
-                "That's the max 10 votes. Thanks 💗";
-
-        } else {
-
-            votes.push({ name: leafName, vote: pendingVote });
-
-            localStorage.setItem(
-                "deviceVotes",
-                JSON.stringify(votes)
-            );
-
-            saved = true;
-
-            cachedDeviceCount = votes.length;
-
-        }
-
-    }
-
-
-    if (!saved) {
-
-        alert(serverError || "Could not save vote 💗");
+        alert(
+            "That's the max 10 votes from this phone. Thanks 💗"
+        );
 
         closeNamePopup();
 
@@ -2356,35 +2366,36 @@ async function placeLeafVote() {
     }
 
 
-    /* Also save to localStorage as local cache */
-
-    const localVotes = getStoredVotes();
-
-    if (!localVotes.find(v => v.name === leafName && v.vote === pendingVote)) {
-
-        localVotes.push({ name: leafName, vote: pendingVote });
-
-        localStorage.setItem(
-            "deviceVotes",
-            JSON.stringify(localVotes)
-
-        );
-
-    }
-
-
-    /* Add leaf on tree */
-
     const leafPos = findLeafPosition();
 
-    addTreeLeaf(
-        leafName,
-        pendingVote,
-        leafPos.x,
-        leafPos.y
-    );
 
-    refreshTally();
+    /* Save to shared Firestore database */
+
+    try {
+
+        await votesCol.add({
+
+            name: leafName,
+            vote: pendingVote,
+            deviceId: getDeviceId(),
+            x: leafPos.x,
+            y: leafPos.y,
+            ts: Date.now()
+
+        });
+
+    } catch (e) {
+
+        alert(
+            "Could not save your vote. " +
+            "Please check internet 💗"
+        );
+
+        closeNamePopup();
+
+        return;
+
+    }
 
 
     closeNamePopup();
@@ -2408,8 +2419,8 @@ async function placeLeafVote() {
         (pendingVote === "Boy" ? "blue" : "rose") +
         " leaf has been added to our Baby Shower Tree! 🌳<br><br>" +
 
-        (serverError || (MAX_VOTES - cachedDeviceCount) +
-         " votes left from this phone.");
+        (MAX_VOTES - cachedDeviceCount - 1) +
+        " votes left from this phone.";
 
 
     document.getElementById(
@@ -2700,10 +2711,10 @@ function updateTally(votes) {
    RESTORE SAVED LEAVES
 ========================= */
 
-window.addEventListener("load", async function () {
+window.addEventListener("load", function () {
 
     /* If admin reset the votes on this phone,
-       start completely fresh (even offline) */
+       forget the local parent locks too */
 
     if (localStorage.getItem("voteResetSignal")) {
 
@@ -2714,156 +2725,6 @@ window.addEventListener("load", async function () {
         localStorage.removeItem("parentVote_Mom");
 
         localStorage.removeItem("parentVote_Dad");
-
-    }
-
-    let serverVotes = null;
-
-    let serverGen = null;
-
-    try {
-
-        const res =
-            await apiJSON("/api/votes");
-
-        if (res && res.votes) {
-
-            serverVotes = res.votes;
-
-            serverGen = Number(res.gen || 0);
-
-        }
-
-    } catch (e) {}
-
-
-    /* An admin reset bumps the server "generation".
-       A higher gen means the votes were intentionally
-       cleared → drop this phone's cache too. A lower gen
-       means the free host wiped its disk → KEEP our votes
-       and restore them to the server. */
-
-    const localGen =
-        Number(localStorage.getItem("voteGen") || 0);
-
-    const wasReset =
-        serverGen !== null && serverGen > localGen;
-
-    if (wasReset) {
-
-        localStorage.removeItem("deviceVotes");
-
-        localStorage.removeItem("parentVote_Mom");
-
-        localStorage.removeItem("parentVote_Dad");
-
-    }
-
-    if (serverGen !== null) {
-
-        localStorage.setItem("voteGen", String(serverGen));
-
-    }
-
-    const localVotes =
-        wasReset ? [] : getAllLocalVotes();
-
-
-    /* Send this phone's saved votes back to the server so
-       a restart / disk-wipe never makes them "not found". */
-
-    if (serverVotes && !wasReset) {
-
-        const onServer = {};
-
-        serverVotes.forEach(function (v) {
-
-            onServer[v.name + "|" + v.vote] = true;
-
-        });
-
-        const missing = localVotes.filter(function (v) {
-
-            return !onServer[v.name + "|" + v.vote];
-
-        });
-
-        if (missing.length) {
-
-            try {
-
-                const res = await apiJSON(
-                    "/api/votes/sync",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            deviceId: getDeviceId(),
-                            votes: missing
-                        })
-                    }
-                );
-
-                if (res && res.votes) {
-
-                    serverVotes = res.votes;
-
-                }
-
-            } catch (e) {}
-
-        }
-
-    }
-
-
-    /* Show the union of server + this phone's votes */
-
-    const votes =
-        serverVotes
-            ? dedupeVotes(serverVotes.concat(localVotes))
-            : localVotes;
-
-    votes.forEach(function (v) {
-
-        const leafPos = findLeafPosition();
-
-        addTreeLeaf(
-            v.name,
-            v.vote,
-            leafPos.x,
-            leafPos.y
-        );
-
-    });
-
-    updateTally(votes);
-
-    if (serverVotes) {
-
-        const myId =
-            getDeviceId();
-
-        cachedDeviceCount = serverVotes.filter(
-            function (v) {
-                return v.device_id === myId;
-            }
-        ).length;
-
-    } else {
-
-        cachedDeviceCount = localVotes.length;
-
-    }
-
-
-    if (cachedDeviceCount >= MAX_VOTES) {
-
-        alert(
-            "Max 10 votes from this phone, thanks 💗"
-        );
 
     }
 
@@ -2890,103 +2751,84 @@ window.addEventListener("load", async function () {
     });
 
 
-    /* =========================
-       BABY BORN RESULT
-    ========================= */
+    /* Live baby announcement from Firestore */
 
-    let baby = null;
+    babyDoc.onSnapshot(function (doc) {
 
-    try {
+        if (doc.exists) {
 
-        const res =
-            await apiJSON("/api/baby");
-
-        if (res && res.baby) {
-
-            baby = res.baby;
+            showBaby(doc.data());
 
         }
 
-    } catch (e) {}
+    }, function (err) {
 
+        console.error("Firestore error:", err);
 
-    /* localStorage fallback */
-
-    if (!baby) {
-
-        const babyStr =
-            localStorage.getItem("babyData");
-
-        if (babyStr) {
-
-            try {
-                baby = JSON.parse(babyStr);
-            } catch (err) {
-                baby = null;
-            }
-
-        }
-
-    }
-
-
-    if (baby) {
-
-        const isBoy =
-            baby.gender === "Boy";
-
-        document.getElementById(
-            "babyPopupTitle"
-        ).innerHTML =
-            isBoy
-                ? "🎉 It's a Boy! 👦"
-                : "🎉 It's a Girl! 👧";
-
-
-        document.getElementById(
-            "babyWinner"
-        ).innerHTML =
-            isBoy
-                ? "💙 Blue team wins! 💙"
-                : "🩷 Rose team wins! 🩷";
-
-
-        document.getElementById(
-            "babyDetails"
-        ).innerHTML =
-            "Born on: <b>" + baby.date + "</b><br>" +
-            "Time: <b>" + baby.time + "</b>";
-
-
-        document.getElementById(
-            "babyCeremonyName"
-        ).innerHTML =
-            "👶 Baby " + baby.name + " 👶";
-
-
-        if (baby.photo) {
-
-            const photo =
-                document.getElementById("babyPhoto");
-
-            photo.src = baby.photo;
-
-            photo.style.display = "block";
-
-        } else {
-
-            document.getElementById("babyPhoto")
-                .style.display = "none";
-
-        }
-
-
-        document.getElementById("babyPopup")
-            .style.display = "flex";
-
-    }
+    });
 
 });
+
+
+/* =========================
+   SHOW BABY RESULT
+========================= */
+
+function showBaby(baby) {
+
+    const isBoy =
+        baby.gender === "Boy";
+
+    document.getElementById(
+        "babyPopupTitle"
+    ).innerHTML =
+        isBoy
+            ? "🎉 It's a Boy! 👦"
+            : "🎉 It's a Girl! 👧";
+
+
+    document.getElementById(
+        "babyWinner"
+    ).innerHTML =
+        isBoy
+            ? "💙 Blue team wins! 💙"
+            : "🩷 Rose team wins! 🩷";
+
+
+    document.getElementById(
+        "babyDetails"
+    ).innerHTML =
+        "Born on: <b>" + baby.date + "</b><br>" +
+        "Time: <b>" + baby.time + "</b>";
+
+
+    document.getElementById(
+        "babyCeremonyName"
+    ).innerHTML =
+        "👶 Baby " + baby.name + " 👶";
+
+
+    if (baby.photo) {
+
+        const photo =
+            document.getElementById("babyPhoto");
+
+        photo.src = baby.photo;
+
+        photo.style.display = "block";
+
+    } else {
+
+        document.getElementById("babyPhoto")
+            .style.display = "none";
+
+    }
+
+
+    document.getElementById("babyPopup")
+        .style.display = "flex";
+
+}
 
 
 function closeBabyPopup() {

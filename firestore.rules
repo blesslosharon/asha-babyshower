@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* Guest votes. Anyone can read; new votes are
+       validated. Update/delete is open so the admin
+       "Reset ALL Votes" button works without login. */
+
+    match /votes/{voteId} {
+      allow read: if true;
+
+      allow create: if
+        request.resource.data.keys().hasAll(['name', 'vote', 'deviceId'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.deviceId is string
+        && (request.resource.data.vote == 'Boy'
+            || request.resource.data.vote == 'Girl');
+
+      allow update, delete: if true;
+    }
+
+    /* Baby announcement (single doc). */
+
+    match /baby/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
