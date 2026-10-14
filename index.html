@@ -1924,6 +1924,52 @@ function voteCount() {
 }
 
 
+/* Every vote this phone ever saved (guests + Mom/Dad).
+   Used to restore votes after the server is wiped. */
+
+function getAllLocalVotes() {
+
+    const all = getStoredVotes().slice();
+
+    ["Mom", "Dad"].forEach(function (role) {
+
+        const v =
+            localStorage.getItem("parentVote_" + role);
+
+        if (v) all.push({ name: role, vote: v });
+
+    });
+
+    return all;
+
+}
+
+
+/* Dedupe a list of votes by name + pick */
+
+function dedupeVotes(list) {
+
+    const seen = {};
+
+    const out = [];
+
+    list.forEach(function (v) {
+
+        const key = v.name + "|" + v.vote;
+
+        if (seen[key]) return;
+
+        seen[key] = true;
+
+        out.push(v);
+
+    });
+
+    return out;
+
+}
+
+
 /* =========================
    SUBMIT VOTE
 ========================= */
@@ -2241,7 +2287,7 @@ async function placeLeafVote() {
 
             saved = true;
 
-            cachedDeviceCount = res.voteCount || 0;
+            cachedDeviceCount = res.deviceCount || 0;
 
         }
 
@@ -2655,6 +2701,8 @@ window.addEventListener("load", async function () {
 
     let serverVotes = null;
 
+    let serverGen = null;
+
     try {
 
         const res =
@@ -2664,12 +2712,101 @@ window.addEventListener("load", async function () {
 
             serverVotes = res.votes;
 
+            serverGen = Number(res.gen || 0);
+
         }
 
     } catch (e) {}
 
+
+    /* An admin reset bumps the server "generation".
+       A higher gen means the votes were intentionally
+       cleared → drop this phone's cache too. A lower gen
+       means the free host wiped its disk → KEEP our votes
+       and restore them to the server. */
+
+    const localGen =
+        Number(localStorage.getItem("voteGen") || 0);
+
+    const wasReset =
+        serverGen !== null && serverGen > localGen;
+
+    if (wasReset) {
+
+        localStorage.removeItem("deviceVotes");
+
+        localStorage.removeItem("parentVote_Mom");
+
+        localStorage.removeItem("parentVote_Dad");
+
+    }
+
+    if (serverGen !== null) {
+
+        localStorage.setItem("voteGen", String(serverGen));
+
+    }
+
+    const localVotes =
+        wasReset ? [] : getAllLocalVotes();
+
+
+    /* Send this phone's saved votes back to the server so
+       a restart / disk-wipe never makes them "not found". */
+
+    if (serverVotes && !wasReset) {
+
+        const onServer = {};
+
+        serverVotes.forEach(function (v) {
+
+            onServer[v.name + "|" + v.vote] = true;
+
+        });
+
+        const missing = localVotes.filter(function (v) {
+
+            return !onServer[v.name + "|" + v.vote];
+
+        });
+
+        if (missing.length) {
+
+            try {
+
+                const res = await apiJSON(
+                    "/api/votes/sync",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            deviceId: getDeviceId(),
+                            votes: missing
+                        })
+                    }
+                );
+
+                if (res && res.votes) {
+
+                    serverVotes = res.votes;
+
+                }
+
+            } catch (e) {}
+
+        }
+
+    }
+
+
+    /* Show the union of server + this phone's votes */
+
     const votes =
-        serverVotes || getStoredVotes();
+        serverVotes
+            ? dedupeVotes(serverVotes.concat(localVotes))
+            : localVotes;
 
     votes.forEach(function (v) {
 
@@ -2691,7 +2828,7 @@ window.addEventListener("load", async function () {
         const myId =
             getDeviceId();
 
-        cachedDeviceCount = votes.filter(
+        cachedDeviceCount = serverVotes.filter(
             function (v) {
                 return v.device_id === myId;
             }
@@ -2699,7 +2836,7 @@ window.addEventListener("load", async function () {
 
     } else {
 
-        cachedDeviceCount = votes.length;
+        cachedDeviceCount = localVotes.length;
 
     }
 
@@ -2717,28 +2854,8 @@ window.addEventListener("load", async function () {
 
     ["Mom", "Dad"].forEach(function (role) {
 
-        let lock =
+        const lock =
             localStorage.getItem("parentVote_" + role);
-
-        /* If the server was reset, release the parent's lock */
-
-        if (lock && serverVotes) {
-
-            const stillVoted = serverVotes.some(
-                function (v) {
-                    return v.name === role && v.vote === lock;
-                }
-            );
-
-            if (!stillVoted) {
-
-                localStorage.removeItem("parentVote_" + role);
-
-                lock = "";
-
-            }
-
-        }
 
         if (lock) {
 

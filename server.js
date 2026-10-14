@@ -10,7 +10,6 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const crypto = require("node:crypto");
 const { DatabaseSync } = require("node:sqlite");
 
 const ROOT = __dirname;
@@ -37,7 +36,32 @@ db.exec(`
     photo  TEXT DEFAULT '',
     gender TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
 `);
+
+/* Reset generation — bumped on every admin reset so
+   phones know to drop their cached votes (and NOT
+   re-upload votes the admin deleted). */
+
+function getGen() {
+  const row = db
+    .prepare("SELECT value FROM meta WHERE key = 'gen'")
+    .get();
+  return row ? Number(row.value) : 0;
+}
+
+function bumpGen() {
+  const next = getGen() + 1;
+  db.prepare(
+    `INSERT INTO meta (key, value) VALUES ('gen', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  ).run(String(next));
+  return next;
+}
 
 /* ---------- helpers ---------- */
 
@@ -125,25 +149,66 @@ function getBaby() {
 
 function apiGetVotes(res) {
   const votes = getVotes();
+  sendJSON(res, 200, {
+    votes: votes,
+    tally: tallyOf(votes),
+    gen: getGen()
+  });
+}
+
+function tallyOf(votes) {
   let boys = 0;
   let girls = 0;
   votes.forEach(function (v) {
     if (v.vote === "Boy") boys++;
     else if (v.vote === "Girl") girls++;
   });
-  sendJSON(res, 200, {
-    votes: votes,
-    tally: { boys: boys, girls: girls }
-  });
+  return { boys: boys, girls: girls };
 }
 
 function apiResetVotes(res) {
   db.prepare("DELETE FROM votes").run();
+  const gen = bumpGen();
   sendJSON(res, 200, {
     ok: true,
     votes: [],
-    tally: { boys: 0, girls: 0 }
+    tally: { boys: 0, girls: 0 },
+    gen: gen
   });
+}
+
+const MAX_VOTES_PER_DEVICE = 10;
+
+/* Insert a vote unless this device already cast the
+   exact same name+vote (so re-syncing never duplicates). */
+function addVote(device, name, vote) {
+  const exists = db
+    .prepare(
+      "SELECT id FROM votes WHERE device_id = ? AND name = ? AND vote = ?"
+    )
+    .get(device, name, vote);
+
+  if (exists) return { added: false };
+
+  const count = db
+    .prepare("SELECT COUNT(*) AS c FROM votes WHERE device_id = ?")
+    .get(device).c;
+
+  if (count >= MAX_VOTES_PER_DEVICE) {
+    return { added: false, full: true };
+  }
+
+  db.prepare(
+    "INSERT INTO votes (name, vote, device_id) VALUES (?, ?, ?)"
+  ).run(name, vote, device);
+
+  return { added: true };
+}
+
+function deviceCount(device) {
+  return db
+    .prepare("SELECT COUNT(*) AS c FROM votes WHERE device_id = ?")
+    .get(device).c;
 }
 
 function apiPostVote(req, res) {
@@ -158,7 +223,7 @@ function apiPostVote(req, res) {
     const vote =
       String(body.vote || "").trim();
     const deviceId =
-      String(body.deviceId || "").trim();
+      String(body.deviceId || "").trim() || "anon";
 
     if (!name || (vote !== "Boy" && vote !== "Girl")) {
       sendJSON(res, 400, {
@@ -168,11 +233,9 @@ function apiPostVote(req, res) {
       return;
     }
 
-    const deviceVotes = db
-      .prepare("SELECT COUNT(*) AS c FROM votes WHERE device_id = ?")
-      .get(deviceId || "anon");
+    const result = addVote(deviceId, name, vote);
 
-    if (deviceVotes.c >= 10) {
+    if (!result.added && result.full) {
       sendJSON(res, 429, {
         error: "Max 10 votes from this phone, thanks 💗",
         exists: true,
@@ -181,20 +244,50 @@ function apiPostVote(req, res) {
       return;
     }
 
-    const insert = db.prepare(
-      "INSERT INTO votes (name, vote, device_id) VALUES (?, ?, ?)"
-    );
-
-    insert.run(
-      name,
-      vote,
-      deviceId || ("dev-" + crypto.randomUUID())
-    );
+    const votes = getVotes();
 
     sendJSON(res, 200, {
       ok: true,
+      duplicate: !result.added,
       vote: { name: name, vote: vote },
-      voteCount: getVotes().length
+      voteCount: votes.length,
+      deviceCount: deviceCount(deviceId),
+      tally: tallyOf(votes),
+      gen: getGen()
+    });
+  });
+}
+
+/* Offline phones keep their own votes. When they come
+   back online (or the server was wiped on a free host),
+   they send their local votes here to restore them. */
+function apiSyncVotes(req, res) {
+  readBody(req, (body) => {
+    if (!body || !Array.isArray(body.votes)) {
+      sendJSON(res, 400, { error: "Invalid sync body" });
+      return;
+    }
+
+    const device =
+      String(body.deviceId || "").trim() || "anon";
+
+    body.votes.forEach(function (v) {
+      const name = String(v.name || "").trim();
+      const vote = String(v.vote || "").trim();
+      if (!name || (vote !== "Boy" && vote !== "Girl")) {
+        return;
+      }
+      addVote(device, name, vote);
+    });
+
+    const votes = getVotes();
+
+    sendJSON(res, 200, {
+      ok: true,
+      votes: votes,
+      tally: tallyOf(votes),
+      deviceCount: deviceCount(device),
+      gen: getGen()
     });
   });
 }
@@ -276,6 +369,11 @@ const server = http.createServer((req, res) => {
 
   if (url === "/api/votes" && method === "DELETE") {
     apiResetVotes(res);
+    return;
+  }
+
+  if (url === "/api/votes/sync" && method === "POST") {
+    apiSyncVotes(req, res);
     return;
   }
 
