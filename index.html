@@ -1857,6 +1857,10 @@ function selectVote(choice) {
 
 const MAX_VOTES = 10;
 
+/* Only Mom & Dad know this — keeps their pick private */
+
+const PARENT_PASSWORD = "asdf";
+
 let cachedDeviceCount = 0;
 let allVotes = [];
 
@@ -2102,6 +2106,20 @@ leafSources.forEach(function (leaf) {
             if (localStorage.getItem("parentVote_" + role)) {
 
                 alert(role + " already chose 💗");
+
+                return;
+
+            }
+
+            /* Mom & Dad are private — ask for the password */
+
+            const pass = prompt(
+                "🔐 " + role + "'s secret password:"
+            );
+
+            if (pass !== PARENT_PASSWORD) {
+
+                alert("Wrong password 💗");
 
                 return;
 
